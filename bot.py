@@ -4,7 +4,7 @@ TOKEN = os.getenv("BOT_TOKEN") ADMIN_ID = int(os.getenv("ADMIN_ID")) CHANNEL_USE
 
 bot = telebot.TeleBot(TOKEN)
 
-referrals = {} balances = {} last_daily_reward = {} ad_list = []  # الإعلانات المضافة من الأدمن user_seen_ads = {} custom_prices = "💵 قائمة الأسعار:\n\n- تمويل 100 عضو: 5$\n- تمويل 200 عضو: 10$\n- تمويل 500 عضو: 20$" contact_link = "https://t.me/your_username"
+referrals = {} balances = {} last_daily_reward = {} ad_list = [] user_seen_ads = {} custom_prices = "💵 قائمة الأسعار:\n\n- تمويل 100 عضو: 5$\n- تمويل 200 عضو: 10$\n- تمويل 500 عضو: 20$" contact_link = "https://t.me/your_username"
 
 def check_subscription(user_id): for ch in FORCE_SUB_CHANNELS: try: status = bot.get_chat_member(ch, user_id).status if status not in ['member', 'creator', 'administrator']: return False except: return False return True
 
@@ -25,7 +25,6 @@ if len(message.text.split()) > 1:
         balances[ref_id] = balances.get(ref_id, 0) + 5
 
 markup = main_menu(user_id)
-
 bot.send_message(
     user_id,
     f"أهلًا {message.from_user.first_name}،\n"
@@ -36,8 +35,6 @@ bot.send_message(
     "اختر من الأزرار التالية:",
     reply_markup=markup
 )
-
-def main_menu(user_id): markup = InlineKeyboardMarkup(row_width=2) markup.add( InlineKeyboardButton("📝 طلب تمويل إعلان", callback_data='order'), InlineKeyboardButton("💵 الأسعار", callback_data='prices'), InlineKeyboardButton("📊 إحصائيات القناة", callback_data='stats'), InlineKeyboardButton("👥 دعوة الأصدقاء", callback_data='invite'), InlineKeyboardButton("💰 سحب الأرباح", callback_data='withdraw'), InlineKeyboardButton("🎁 المكافأة اليومية", callback_data='daily'), InlineKeyboardButton("📢 عرض الإعلانات", callback_data='view_ads'), InlineKeyboardButton("📩 تواصل معنا", url=contact_link) ) if user_id == ADMIN_ID: markup.add(InlineKeyboardButton("🛠️ لوحة تحكم الأدمن", callback_data='admin_panel')) return markup
 
 @bot.callback_query_handler(func=lambda call: True) def handle_callback(call): user_id = call.from_user.id
 
@@ -100,8 +97,10 @@ elif call.data == "view_ads":
         return
     for ad in ads:
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("✅ اشترك في القناة", url=ad['url']),
-                   InlineKeyboardButton("تحقّق من الاشتراك", callback_data=f"verify_ad|{ad['url']}"))
+        markup.add(
+            InlineKeyboardButton("✅ اشترك في القناة", url=ad['url']),
+            InlineKeyboardButton("تحقّق من الاشتراك", callback_data=f"verify_ad|{ad['url']}")
+        )
         bot.send_message(user_id, ad['text'], reply_markup=markup)
 
 elif call.data.startswith("verify_ad"):
@@ -147,13 +146,7 @@ def save_ad(message): text = message.text parts = text.strip().split("https://t.
 
 def process_withdrawal(message): user_id = message.from_user.id details = message.text bot.send_message(ADMIN_ID, f"💸 طلب سحب من المستخدم {user_id}:\n\n{details}") bot.send_message(user_id, "✅ تم استلام طلب السحب، سيتم مراجعته خلال 24 ساعة.")
 
-def receive_ad(message): ad_info = f"📢 إعلان جديد من {message.from_user.first_name} (@{message.from_user.username}):\n\n" if message.text: ad_info += message.text elif message.caption: ad_info += message.caption
-
-bot.send_message(ADMIN_ID, ad_info)
-if message.content_type != 'text':
-    bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-
-bot.send_message(message.chat.id, "✅ تم استلام طلبك، سيتم التواصل معك قريبًا لإتمام العملية.")
+def receive_ad(message): ad_info = f"📢 إعلان جديد من {message.from_user.first_name} (@{message.from_user.username}):\n\n" if message.text: ad_info += message.text elif message.caption: ad_info += message.caption bot.send_message(ADMIN_ID, ad_info) if message.content_type != 'text': bot.forward_message(ADMIN_ID, message.chat.id, message.message_id) bot.send_message(message.chat.id, "✅ تم استلام طلبك، سيتم التواصل معك قريبًا لإتمام العملية.")
 
 @bot.message_handler(func=lambda m: True) def block_users(m): if m.from_user.id != ADMIN_ID: return  # تجاهل أي رسالة من غير الأدمن
 
