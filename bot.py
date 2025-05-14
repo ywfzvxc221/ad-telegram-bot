@@ -3,11 +3,13 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
 
-# ====== بيانات البوت ======
-TOKEN = "8083057614:AAFfFy9kkFZqv1HRvaPZkIF0-NbF_IeWwAA"
-ADMIN_ID = 5475256932
-CHANNEL_USERNAME = '@qqwweerrttqqyyyy'
-FORCE_SUB_CHANNELS = ['@qq122311w', '@qqwweerrttqqyyyy']
+# ====== بيانات البوت من متغيرات البيئة ======
+TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+CHANNEL_USERNAME = os.getenv("FORCE_CHANNELS").split(",")[0]
+FORCE_SUB_CHANNELS = os.getenv("FORCE_CHANNELS").split(",")
+PROOF_CHANNEL = os.getenv("PROOF_CHANNEL")
+FAUCETPAY_EMAIL = os.getenv("FAUCETPAY_EMAIL")
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -166,67 +168,33 @@ def handle_callback(call):
         markup.add(
             InlineKeyboardButton("✏️ تغيير الأسعار", callback_data="edit_prices"),
             InlineKeyboardButton("✉️ تغيير رابط التواصل", callback_data="edit_contact"),
-            InlineKeyboardButton("📢 إرسال إعلان", callback_data="add_ad")
+            InlineKeyboardButton("📢 إرسال إعلان", callback_data="add_ad"),
+            InlineKeyboardButton("🛠️ إدارة المكافآت والمهام", callback_data="manage_rewards")
         )
         bot.send_message(user_id, "🛠️ لوحة تحكم الأدمن:", reply_markup=markup)
 
-    elif call.data == "edit_prices" and user_id == ADMIN_ID:
-        msg = bot.send_message(user_id, "✏️ أرسل النص الجديد لقائمة الأسعار:")
-        bot.register_next_step_handler(msg, update_prices)
+    elif call.data == "manage_rewards" and user_id == ADMIN_ID:
+        markup = InlineKeyboardMarkup()
+        markup.add(
+            InlineKeyboardButton("✏️ تغيير المكافأة اليومية", callback_data="edit_daily_reward"),
+            InlineKeyboardButton("✏️ إضافة مهمة جديدة", callback_data="add_task")
+        )
+        bot.send_message(user_id, "📋 إدارة المكافآت والمهام:", reply_markup=markup)
 
-    elif call.data == "edit_contact" and user_id == ADMIN_ID:
-        msg = bot.send_message(user_id, "✏️ أرسل الرابط الجديد للتواصل:")
-        bot.register_next_step_handler(msg, update_contact)
+    # إضافة تفاصيل مع المهام
+    elif call.data == "edit_daily_reward" and user_id == ADMIN_ID:
+        msg = bot.send_message(user_id, "✏️ أرسل المكافأة اليومية الجديدة:")
+        bot.register_next_step_handler(msg, update_daily_reward)
 
-    elif call.data == "add_ad" and user_id == ADMIN_ID:
-        msg = bot.send_message(user_id, "📢 أرسل نص الإعلان + رابط القناة:")
-        bot.register_next_step_handler(msg, save_ad)
+    elif call.data == "add_task" and user_id == ADMIN_ID:
+        msg = bot.send_message(user_id, "📋 اكتب تفاصيل المهمة الجديدة (مثل: الاشتراك في قناة):")
+        bot.register_next_step_handler(msg, add_new_task)
 
 # ====== دوال ثانوية ======
-def update_prices(message):
-    global custom_prices
-    custom_prices = message.text
-    bot.send_message(message.chat.id, "✅ تم تحديث قائمة الأسعار.")
+def update_daily_reward(message):
+    # تحديث المكافأة اليومية
+    pass
 
-def update_contact(message):
-    global contact_link
-    contact_link = message.text
-    bot.send_message(message.chat.id, "✅ تم تحديث رابط التواصل.")
-
-def save_ad(message):
-    text = message.text
-    parts = text.strip().split("https://t.me/")
-    if len(parts) == 2:
-        content = parts[0].strip()
-        url = "https://t.me/" + parts[1].strip()
-        ad_list.append({'text': content, 'url': url})
-        bot.send_message(message.chat.id, "✅ تم حفظ الإعلان وسيظهر للمستخدمين.")
-    else:
-        bot.send_message(message.chat.id, "⚠️ تأكد من وجود رابط قناة في النص.")
-
-def process_withdrawal(message):
-    user_id = message.from_user.id
-    details = message.text
-    bot.send_message(ADMIN_ID, f"💸 طلب سحب من المستخدم {user_id}:\n\n{details}")
-    bot.send_message(user_id, "✅ تم استلام طلب السحب، سيتم مراجعته خلال 24 ساعة.")
-
-def receive_ad(message):
-    ad_info = f"📢 إعلان جديد من {message.from_user.first_name} (@{message.from_user.username}):\n\n"
-    if message.text:
-        ad_info += message.text
-    elif message.caption:
-        ad_info += message.caption
-    bot.send_message(ADMIN_ID, ad_info)
-    if message.content_type != 'text':
-        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-    bot.send_message(message.chat.id, "✅ تم استلام طلبك، سيتم التواصل معك قريبًا لإتمام العملية.")
-
-# ====== منع أي رسائل من غير الأدمن ======
-@bot.message_handler(func=lambda m: True)
-def block_users(m):
-    if m.from_user.id != ADMIN_ID:
-        return
-
-# ====== تشغيل البوت ======
-print("🚀 البوت يعمل الآن...")
-bot.infinity_polling()
+def add_new_task(message):
+    # إضافة مهمة جديدة
+    pass
