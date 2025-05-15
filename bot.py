@@ -1,103 +1,107 @@
-import telebot
-from telebot import types
-import os
+import os import telebot from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton from datetime import datetime from dotenv import load_dotenv
 
-# قراءة البيانات من متغيرات البيئة
-TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_ID = int(os.environ.get('ADMIN_ID'))
+تحميل متغيرات البيئة من .env
 
-bot = telebot.TeleBot(TOKEN)
+load_dotenv()
 
-# رسالة الترحيب الافتراضية
-welcome_message = "مرحبًا بك في البوت الربحي!"
+BOT_TOKEN = os.getenv("BOT_TOKEN") ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# لوحة الأزرار الرئيسية
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('💰 Balance', '📈 Ref Stats')
-    markup.row('💵 Withdraw', '💸 Earn More')
-    markup.row('🎁 Bonus', '📰 الإعلانات')
-    return markup
+bot = telebot.TeleBot(BOT_TOKEN)
 
-# لوحة تحكم الأدمن
-def admin_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('📤 إرسال رسالة للجميع', '📝 تعديل الترحيب')
-    markup.row('➕ إضافة إعلان', '📊 إحصائيات')
-    markup.row('⬅️ رجوع')
-    return markup
+الإعدادات الافتراضية
 
-ads = []
+config = { "daily_reward": float(os.getenv("DAILY_REWARD", 0.01)), "welcome_message": os.getenv("WELCOME_MESSAGE", "🎉 أهلاً وسهلاً بك في بوت الربح!"), "support_contact": os.getenv("SUPPORT_CONTACT", "@YourSupportUsername"), "ads_text": "📢 لا توجد إعلانات حالياً.", "video_text": "▶️ لا يوجد فيديو حالياً.", "visit_text": "🌐 لا يوجد موقع حالياً." }
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.send_message(message.chat.id, welcome_message, reply_markup=main_menu())
+users = {}
 
-# التعامل مع الأزرار العامة
-@bot.message_handler(func=lambda message: True)
-def handle_user(message):
-    chat_id = message.chat.id
-    text = message.text
+التحقق من التسجيل
 
-    if chat_id == ADMIN_ID and text == "/admin":
-        bot.send_message(chat_id, "لوحة تحكم الأدمن:", reply_markup=admin_menu())
-        return
+def is_user_registered(user_id): return user_id in users
 
-    if chat_id == ADMIN_ID:
-        handle_admin(message)
-        return
+def register_user(user_id, username): users[user_id] = { "username": username, "balance": 0.0, "referrals": 0, "last_bonus": "لا يوجد" }
 
-    # أزرار المستخدم العادي
-    if text == '💰 Balance':
-        bot.send_message(chat_id, "رصيدك الحالي: 0$", reply_markup=main_menu())
-    elif text == '📈 Ref Stats':
-        bot.send_message(chat_id, "عدد الإحالات: 0", reply_markup=main_menu())
-    elif text == '💵 Withdraw':
-        bot.send_message(chat_id, "الحد الأدنى للسحب: 100$", reply_markup=main_menu())
-    elif text == '💸 Earn More':
-        bot.send_message(chat_id, "اربح المزيد من خلال رابط الإحالة.", reply_markup=main_menu())
-    elif text == '🎁 Bonus':
-        bot.send_message(chat_id, "مكافأتك اليومية: 0.003$", reply_markup=main_menu())
-    elif text == '📰 الإعلانات':
-        if not ads:
-            bot.send_message(chat_id, "لا توجد إعلانات حالياً.", reply_markup=main_menu())
-        else:
-            for ad in ads:
-                bot.send_message(chat_id, ad, disable_web_page_preview=True)
+def get_user(user_id): return users.get(user_id, { "balance": 0.0, "referrals": 0, "last_bonus": "لا يوجد" })
+
+def check_subscription(user_id): return True
+
+def subscription_buttons(): markup = InlineKeyboardMarkup() markup.add(InlineKeyboardButton("📢 قناة 1", url="https://t.me/qq122311w")) markup.add(InlineKeyboardButton("📢 قناة 2", url="https://t.me/qqwweerrttqqyyyy")) markup.add(InlineKeyboardButton("✅ تحقق من الاشتراك", callback_data="check_sub")) return markup
+
+def main_menu(): markup = InlineKeyboardMarkup() markup.row( InlineKeyboardButton("🎁 مكافأتي اليومية", callback_data="daily"), InlineKeyboardButton("🔗 رابط الإحالة", callback_data="referral") ) markup.row( InlineKeyboardButton("📢 عرض الإعلانات", callback_data="ads"), InlineKeyboardButton("📊 إحصائياتي", callback_data="stats") ) markup.row(InlineKeyboardButton("💸 سحب الأرباح", callback_data="withdraw")) markup.row(InlineKeyboardButton("🛠 الدعم الفني", callback_data="support")) markup.row(InlineKeyboardButton("/start - الرجوع للقائمة الرئيسية", callback_data="back_to_home")) if user_is_admin(ADMIN_ID): markup.row(InlineKeyboardButton("🛠 لوحة تحكم الأدمن", callback_data="admin_panel")) return markup
+
+def user_is_admin(user_id): return user_id == ADMIN_ID
+
+@bot.message_handler(commands=['start']) def start(message): user_id = message.from_user.id if not is_user_registered(user_id): register_user(user_id, message.from_user.username)
+
+if not check_subscription(user_id):
+    bot.send_message(user_id, "❗ يرجى الاشتراك في القنوات التالية:", reply_markup=subscription_buttons())
+    return
+
+user = get_user(user_id)
+welcome_text = f"{config['welcome_message']}\n\n💰 رصيدك الحالي: {user['balance']}$"
+bot.send_message(user_id, welcome_text, reply_markup=main_menu())
+
+@bot.callback_query_handler(func=lambda call: True) def handle_query(call): user_id = call.from_user.id if not is_user_registered(user_id): register_user(user_id, call.from_user.username)
+
+if call.data == "check_sub":
+    if check_subscription(user_id):
+        bot.send_message(user_id, "✅ تم التحقق من الاشتراك، يمكنك الآن استخدام البوت.", reply_markup=main_menu())
     else:
-        bot.send_message(chat_id, "يرجى اختيار زر من القائمة.", reply_markup=main_menu())
+        bot.send_message(user_id, "❗ يرجى الاشتراك أولاً.", reply_markup=subscription_buttons())
 
-# التعامل مع الأدمن
-def handle_admin(message):
-    global welcome_message
-    text = message.text
-    chat_id = message.chat.id
+elif call.data == "daily":
+    user = users[user_id]
+    today = datetime.now().date()
+    if user["last_bonus"] == str(today):
+        bot.send_message(user_id, "⛔ لقد حصلت على مكافأتك اليومية اليوم بالفعل.")
+    else:
+        user["balance"] += config["daily_reward"]
+        user["last_bonus"] = str(today)
+        bot.send_message(user_id, f"✅ تم إضافة {config['daily_reward']}$ إلى رصيدك!")
 
-    if text == '📤 إرسال رسالة للجميع':
-        msg = bot.send_message(chat_id, "أرسل الرسالة التي تريد نشرها:")
-        bot.register_next_step_handler(msg, broadcast_message)
-    elif text == '📝 تعديل الترحيب':
-        msg = bot.send_message(chat_id, "أرسل رسالة الترحيب الجديدة:")
-        bot.register_next_step_handler(msg, set_welcome_message)
-    elif text == '➕ إضافة إعلان':
-        msg = bot.send_message(chat_id, "أرسل نص الإعلان:")
-        bot.register_next_step_handler(msg, add_ad)
-    elif text == '📊 إحصائيات':
-        bot.send_message(chat_id, f"عدد المستخدمين: {len(bot.get_chat_administrators(chat_id))}", reply_markup=admin_menu())
-    elif text == '⬅️ رجوع':
-        bot.send_message(chat_id, "تم الرجوع إلى القائمة الرئيسية.", reply_markup=main_menu())
+elif call.data == "referral":
+    ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
+    bot.send_message(user_id, f"🔗 رابط الإحالة الخاص بك:\n{ref_link}")
 
-def broadcast_message(message):
-    # إرسال الرسالة لكل المستخدمين (هنا نرسل فقط للأدمن كتمثيل)
-    bot.send_message(ADMIN_ID, f"تم إرسال الرسالة:\n\n{message.text}", reply_markup=admin_menu())
+elif call.data == "ads":
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("📢 إعلان قناة", url="https://t.me/qq122311w"))
+    markup.add(InlineKeyboardButton("▶️ فيديو", url="https://t.me/your_channel/video"))
+    markup.add(InlineKeyboardButton("🌐 موقع", url="https://example.com"))
+    bot.send_message(user_id, f"{config['ads_text']}\n\n{config['video_text']}\n\n{config['visit_text']}", reply_markup=markup)
 
-def set_welcome_message(message):
-    global welcome_message
-    welcome_message = message.text
-    bot.send_message(ADMIN_ID, "تم تحديث رسالة الترحيب.", reply_markup=admin_menu())
+elif call.data == "stats":
+    user = get_user(user_id)
+    msg = f"""📊 إحصائيات حسابك:
 
-def add_ad(message):
-    ads.append(message.text)
-    bot.send_message(ADMIN_ID, "تمت إضافة الإعلان بنجاح.", reply_markup=admin_menu())
+💰 رصيدك الحالي: {user['balance']}$ 👥 عدد الإحالات: {user['referrals']} 🎁 آخر مكافأة: {user['last_bonus']}""" bot.send_message(user_id, msg)
+
+elif call.data == "withdraw":
+    bot.send_message(user_id, "💸 للسحب، الحد الأدنى هو 1$. تواصل مع الدعم.")
+
+elif call.data == "support":
+    bot.send_message(user_id, f"🛠 للتواصل مع الدعم الفني:\n{config['support_contact']}")
+
+elif call.data == "admin_panel" and user_is_admin(user_id):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("🎯 تغيير المكافأة", callback_data="set_reward"))
+    markup.add(InlineKeyboardButton("📝 تعديل الترحيب", callback_data="set_welcome"))
+    markup.add(InlineKeyboardButton("📢 نص الإعلان", callback_data="set_ads"))
+    markup.add(InlineKeyboardButton("🎥 نص الفيديو", callback_data="set_video"))
+    markup.add(InlineKeyboardButton("🌐 نص الموقع", callback_data="set_visit"))
+    markup.add(InlineKeyboardButton("☎️ جهة الدعم", callback_data="set_support"))
+    bot.send_message(user_id, "🛠 لوحة تحكم الأدمن:", reply_markup=markup)
+
+elif call.data.startswith("set_") and user_is_admin(user_id):
+    setting = call.data.replace("set_", "")
+    bot.send_message(user_id, f"✏️ أرسل القيمة الجديدة لـ {setting}:")
+    bot.register_next_step_handler(call.message, update_setting, setting)
+
+elif call.data == "back_to_home":
+    user = get_user(user_id)
+    welcome_text = f"{config['welcome_message']}\n\n💰 رصيدك الحالي: {user['balance']}$"
+    bot.send_message(user_id, welcome_text, reply_markup=main_menu())
+
+def update_setting(message, key): value = message.text if key == "reward": try: config["daily_reward"] = float(value) bot.reply_to(message, f"✅ تم تحديث المكافأة اليومية إلى {value}$") except: bot.reply_to(message, "❗ يرجى إرسال رقم صحيح.") else: config_key = f"{key}_text" if key in ["ads", "video", "visit"] else f"{key}_message" if key == "welcome" else "support_contact" config[config_key] = value bot.reply_to(message, f"✅ تم تحديث {key} بنجاح.")
 
 bot.infinity_polling()
+
